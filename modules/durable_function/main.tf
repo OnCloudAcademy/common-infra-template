@@ -15,24 +15,29 @@ resource "azurerm_service_plan" "plan" {
   sku_name            = "B1"
 }
 
-resource "azurerm_linux_function_app" "function" {
-  name                       = "${var.project_name}-func"
+resource "azurerm_function_app" "fn" {
+  name                       = "${var.project_name}-fn"
   location                   = var.location
-  resource_group_name        = var.resource_group_name
-  service_plan_id            = azurerm_service_plan.plan.id
-  storage_account_name       = azurerm_storage_account.function_storage.name
-  storage_account_access_key = azurerm_storage_account.function_storage.primary_access_key
-  functions_extension_version = "~4"
-
-  site_config {
-    application_stack {
-      python_version = "3.10"
-    }
-  }
+  resource_group_name        = azurerm_resource_group.rg.name
+  app_service_plan_id        = azurerm_app_service_plan.plan.id
+  storage_account_name       = azurerm_storage_account.sa.name
+  storage_account_access_key = azurerm_storage_account.sa.primary_access_key
+  version                    = "~4"
 
   app_settings = {
-    "FUNCTIONS_WORKER_RUNTIME" = "python"
-    "AzureWebJobsStorage"      = azurerm_storage_account.function_storage.primary_connection_string
+    FUNCTIONS_WORKER_RUNTIME   = "python"
+    WEBSITE_RUN_FROM_PACKAGE   = "1"
+    AzureWebJobsFeatureFlags   = "EnableWorkerIndexing"
+    GITHUB_TOKEN               = var.github_token
+    GITHUB_ORG                 = var.github_org
+    AZURE_SUBSCRIPTION_ID      = var.subscription_id
+    AZURE_TENANT_ID            = var.tenant_id
+    RESOURCE_GROUP             = azurerm_resource_group.rg.name
+    LOCATION                   = var.location
+  }
+
+  identity {
+    type = "SystemAssigned"
   }
 
   zip_deploy_file = "${path.module}/function_code/function_package.zip"
